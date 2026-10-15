@@ -1,0 +1,162 @@
+[
+  {
+    "id": "explore",
+    "name": "探索入口",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "summon",
+    "name": "召唤入口",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "soul_entry",
+    "name": "御魂入口",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "explore_marker",
+    "name": "探索页面标记",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "soul_title",
+    "name": "御魂标题（标记）",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "orochi_entry",
+    "name": "八岐大蛇入口",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "orochi_title",
+    "name": "八岐大蛇标题（标记）",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "layer1_option",
+    "name": "壹层选项",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "layer1_selected",
+    "name": "壹层已选中（标记）",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "challenge",
+    "name": "挑战",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "ready",
+    "name": "准备",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "prepare_marker",
+    "name": "准备页面标记",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "auto_battle",
+    "name": "自动战斗",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "battle_controls",
+    "name": "战斗控制区（标记）",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "victory",
+    "name": "胜利标记",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "reward",
+    "name": "奖励展示（标记）",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "continue",
+    "name": "继续",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "back",
+    "name": "返回",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "other_layer_selected",
+    "name": "其他层已选中（标记）",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  },
+  {
+    "id": "network_error",
+    "name": "网络异常提示（标记）",
+    "anchor": [
+      0.5,
+      0.5
+    ]
+  }
+]

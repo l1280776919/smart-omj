@@ -22,3 +22,40 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local game captures and training environments contain account-specific images.
+data/
+training/.venv/
+training/data/
+training/dataset/
+training/runs/
+training/*.jpg
+*.pt
+
+# Scene workbench generated local materials and job state
+training/videos/
+training/scene-materials*/
+training/scene-dataset-pilot/
+training/scene-jobs/
+training/scene-prepared.json
+training/scene-last-job.json
+training/__pycache__/
+training/gpu-wheels/
+training/button-smoke/
+
+# Local experiments, captures, model binaries and runtime dependencies.
+/runs/
+/.tmp_*
+training/button-review-*/
+training/soul11-review/
+training/workbench-*.png
+training/offline-battle.json
+__pycache__/
+*.pyc
+*.onnx
+*.dll
+*.exe
+src-tauri/resources/scene/*.png
+.env
+.env.*
+!.env.example

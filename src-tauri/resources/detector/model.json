@@ -1,0 +1,31 @@
+{
+  "input_size": 640,
+  "classes": [
+    "explore",
+    "summon",
+    "soul_entry",
+    "explore_marker",
+    "soul_title",
+    "orochi_entry",
+    "orochi_title",
+    "layer1_option",
+    "layer1_selected",
+    "challenge",
+    "ready",
+    "prepare_marker",
+    "auto_battle",
+    "battle_controls",
+    "victory",
+    "reward",
+    "continue",
+    "back",
+    "other_layer_selected",
+    "network_error"
+  ],
+  "confidence": 0.7,
+  "nms_iou": 0.45,
+  "supported_layers": [
+    1
+  ],
+  "scope": "Local pilot: MuMu 1920x1080, captured account/UI only; no exception samples yet"
+}

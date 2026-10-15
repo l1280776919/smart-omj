@@ -1,0 +1,123 @@
+[
+  {
+    "id": "challenge",
+    "threshold": 0.9,
+    "file": "o_orochi_fire.png",
+    "roi": [
+      1122,
+      572,
+      131,
+      124
+    ]
+  },
+  {
+    "id": "locked",
+    "threshold": 0.9,
+    "file": "o_orochi_lock.png",
+    "roi": [
+      628,
+      646,
+      262,
+      60
+    ]
+  },
+  {
+    "id": "layer_10",
+    "threshold": 0.9,
+    "file": "o_orochi_check_10.png",
+    "roi": [
+      896,
+      100,
+      269,
+      84
+    ]
+  },
+  {
+    "id": "layer_11",
+    "threshold": 0.9,
+    "file": "o_orochi_check_11.png",
+    "roi": [
+      896,
+      100,
+      269,
+      84
+    ]
+  },
+  {
+    "id": "layer_12",
+    "threshold": 0.9,
+    "file": "o_orochi_check_12.png",
+    "roi": [
+      896,
+      100,
+      269,
+      84
+    ]
+  },
+  {
+    "id": "layer_13",
+    "threshold": 0.9,
+    "file": "o_orochi_check_13.png",
+    "roi": [
+      896,
+      100,
+      269,
+      84
+    ]
+  },
+  {
+    "id": "ready",
+    "threshold": 0.9,
+    "file": "gb_prepare_highlight.png",
+    "roi": [
+      1110,
+      500,
+      169,
+      200
+    ]
+  },
+  {
+    "id": "battle",
+    "threshold": 0.9,
+    "file": "gb_battle_info.png",
+    "roi": [
+      210,
+      1,
+      147,
+      72
+    ]
+  },
+  {
+    "id": "victory",
+    "threshold": 0.9,
+    "file": "gb_win.png",
+    "roi": [
+      296,
+      33,
+      414,
+      224
+    ]
+  },
+  {
+    "id": "reward",
+    "threshold": 0.9,
+    "file": "gb_reward.png",
+    "roi": [
+      547,
+      518,
+      172,
+      96
+    ]
+  },
+  {
+    "id": "defeat",
+    "threshold": 0.9,
+    "file": "gb_false.png",
+    "roi": [
+      413,
+      124,
+      100,
+      100
+    ]
+  }
+]

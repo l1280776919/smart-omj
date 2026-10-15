@@ -1,0 +1,40 @@
+{
+  "classes": {
+    "0": "explore",
+    "1": "fail",
+    "2": "fight",
+    "3": "mitama",
+    "4": "orochi",
+    "5": "ready",
+    "6": "results",
+    "7": "yard"
+  },
+  "input_size": 224,
+  "top1": 1.0,
+  "counts": {
+    "train/explore": 41,
+    "val/explore": 11,
+    "train/fail": 2,
+    "val/fail": 2,
+    "train/fight": 60,
+    "val/fight": 24,
+    "train/mitama": 10,
+    "val/mitama": 2,
+    "train/orochi": 34,
+    "val/orochi": 9,
+    "train/ready": 22,
+    "val/ready": 9,
+    "train/results": 5,
+    "val/results": 2,
+    "train/yard": 47,
+    "val/yard": 14
+  },
+  "device": "cuda:0",
+  "device_name": "NVIDIA GeForce RTX 5070",
+  "independent_validation": false,
+  "onnx_max_abs_error": 1.1920928955078125e-07,
+  "preprocessing": "RGB; fit 224x224 bilinear; centered padding 114; float32 NCHW /255",
+  "limitation": "同一视频按时间留出验证，仅供初步检查；请补充独立录像",
+  "onnx": "D:\\project\\omj\\smart-omj\\training\\scene-jobs\\gpu-eight-train\\yolo11n-cls\\weights\\best.onnx",
+  "created_at": 1792068301
+}

@@ -7,19 +7,29 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "test": "vitest run",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --lib",
+    "prepare:adb": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-adb.ps1",
+    "tauri": "tauri",
+    "prepare:opencv": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-opencv.ps1",
+    "prepare:gpu": "training\\.venv\\Scripts\\python.exe scripts/stage-gpu.py"
   },
   "dependencies": {
-    "vue": "^3.5.13",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "naive-ui": "^2.45.3",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.13",
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.5.1",
+    "jsdom": "^30.1.2",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
-    "vue-tsc": "^3.3.5",
-    "@tauri-apps/cli": "^2"
+    "vitest": "^5.0.4",
+    "vue-tsc": "^3.3.5"
   },
   "packageManager": "pnpm@11.22.0"
 }

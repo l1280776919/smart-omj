@@ -1,0 +1,34 @@
+// @vitest-environment jsdom
+import { mount, flushPromises } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+import { expect, it, vi } from 'vitest';
+import TasksPage from './TasksPage.vue';
+import { desktop } from '../services/desktop';
+import { NCheckbox } from 'naive-ui';
+import { useAppStore } from '../stores/app';
+vi.mock('../services/desktop', () => ({ desktop: { start: vi.fn(), save: vi.fn(), enqueue: vi.fn(), setQueueEnabled: vi.fn() } }));
+it('renders a persisted reactive config and disables start for an unprepared task', async () => {
+  const pinia = createPinia(); setActivePinia(pinia); const store = useAppStore();
+  store.connected = true;
+  store.limits = { rounds: [1,1000], max_minutes: [1,1440], stage_timeout_seconds: [30,600], layers: [10,11,12,13] };
+  store.apply({ sequence: 0, config: { schema_version: 1, serial: 'emulator-5554', endpoint: '127.0.0.1:16384', soul: { rounds: 10, max_minutes: 30, stage_timeout_seconds: 180, layer: 11 } }, run: null, logs: [], queue: { enabled: false, entries: [] }, adb_source: 'adb', data_directory: 'data' });
+  const page = mount(TasksPage, { global: { plugins: [pinia] } }); await flushPromises();
+  expect(page.text()).toContain('emulator-5554');
+  const start = page.findAll('button').find(button => button.text().includes('保存并开始'));
+  expect(start?.attributes('disabled')).toBeDefined();
+  const enqueue = page.findAll('button').find(button => button.text() === '当前配置加入队列')!;
+  const enable = page.findAll('button').find(button => button.text() === '启用队列')!;
+  expect(enqueue.attributes('disabled')).toBeDefined();
+  expect(enable.attributes('disabled')).toBeDefined();
+  page.findComponent(NCheckbox).vm.$emit('update:checked', true); await flushPromises();
+  await enqueue.trigger('click'); await flushPromises();
+  expect(desktop.enqueue).toHaveBeenCalledWith(store.config, 50, expect.any(Number), null);
+  const repeatCheckbox = page.findAllComponents(NCheckbox).find(component => component.text() === '周期重复执行')!;
+  repeatCheckbox.vm.$emit('update:checked', true); await flushPromises();
+  expect(page.text()).toContain('总执行次数（含首次）');
+  await enqueue.trigger('click'); await flushPromises();
+  expect(desktop.enqueue).toHaveBeenLastCalledWith(store.config, 50, expect.any(Number), { interval_minutes: 60, total_runs: 2 });
+  await enable.trigger('click'); await flushPromises();
+  expect(desktop.setQueueEnabled).toHaveBeenCalledWith(true);
+  page.unmount();
+});

@@ -1,0 +1,6 @@
+[env]
+OPENCV_INCLUDE_PATHS = { value = "src-tauri/target/native-deps/opencv/build/include", relative = true }
+OPENCV_LINK_PATHS = { value = "src-tauri/target/native-deps/opencv/build/x64/vc16/lib", relative = true }
+OPENCV_LINK_LIBS = "opencv_world4120"
+LIBCLANG_PATH = "C:/Program Files/LLVM/bin"
+CLANG_PATH = "C:/Program Files/LLVM/bin/clang.exe"

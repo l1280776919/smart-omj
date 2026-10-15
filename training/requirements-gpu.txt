@@ -1,0 +1,7 @@
+# Install with --extra-index-url https://download.pytorch.org/whl/cu130
+# Do not co-install the CPU onnxruntime distribution.
+ultralytics==8.4.177
+onnx==1.23.2
+onnxruntime-gpu==1.31.0
+torch==2.14.1+cu130
+torchvision==0.29.1+cu130
