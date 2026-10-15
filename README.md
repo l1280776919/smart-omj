@@ -1,273 +1,198 @@
 # Smart OMJ
 
-基于 **Tauri 2 + Vue 3 + TypeScript + Rust** 的阴阳师自动化桌面应用。
+基于 **Tauri 2 + Vue 3 + TypeScript + Rust** 的阴阳师自动化桌面应用，当前优先支持 **Windows x64 + MuMu 模拟器**。
 
-本项目计划将 OnmyojiAutoScript 的 Python 自动化引擎与 OASX 的控制界面重新实现为一套应用。最终交付一个安装包、一个启动入口，不依赖 Python、Flutter、单独部署的 OAS 服务或用户手动填写服务地址。
+项目包含场景识别、独立按钮识别工作台和御魂任务编排。截图、推理、点击及流程控制在 Rust 中执行；Python 用于素材处理、训练和模型导出，不作为游戏自动化的常驻服务。
 
-> 当前状态（2026-10-15）：已从工程骨架推进到 Rust ADB 设备控制、OpenCV自适应模板诊断与点击验证、御魂实验状态机、版本化配置、持久化预约与周期队列、旧OAS配置预览导入及 Vue 五页面。真实游戏闭环、OCR、日历调度和干净环境安装验收尚未完成。原实施方案保留如下，详细状态见 [迁移记录](docs/migration-status.md)，不得把“已实现”视为“已真机验证”。
+> **当前状态 · 2026-10-16：** 已在 RTX 5070 / MuMu / 1920×1080 环境验证魂十一「悲鸣」单人循环、CUDA 推理和 MuMu 原生截图。项目仍处于开发验证阶段，模型权重和本机素材未随源码发布，尚未完成干净 Windows 环境的安装包验收。
 
-## 1. 目标与范围
+## 已实现功能
 
-- 首先支持 Windows x64 和本机 MuMu 模拟器，其他模拟器在控制接口稳定后扩展。
-- 使用 Rust 实现设备连接、截图、图像识别、点击操作、任务状态机、调度及异常恢复。
-- 使用 Vue 实现设备管理、任务配置、运行状态、实时日志和应用设置。
-- 前端通过 Tauri Commands / Events 与 Rust 通信，不建立独立的 Python HTTP / WebSocket 服务。
-- 用户无需安装 Python、Node.js 或 Rust。Node.js 和 Rust 仅用于开发；发布包处理 WebView2、ADB、识别模型及原生库等运行依赖。
-- 按任务逐项重写，以可验证的完整任务为里程碑，不承诺第一版覆盖上游全部功能。
+| 模块 | 当前能力 |
+| --- | --- |
+| 设备管理 | ADB 设备发现、连接、截图预览与操作诊断 |
+| 场景识别 | 庭院、探索、御魂入口、八岐大蛇、准备、战斗、结算、失败，共 8 类 |
+| 场景训练 | 录像抽帧、素材筛选、训练/验证划分、训练与 ONNX 导出、模型启用和识别测试 |
+| 按钮工作台 | 图片/录像素材采集、预标注、框选修正、类别管理、逐图或批量划分、训练、模型评估与坐标测试 |
+| 御魂流程 | 壹层实验流程与魂十一「悲鸣」循环；轮数限制、运行超时、停止和失败留档 |
+| 任务调度 | 持久化预约、周期队列、优先级及中断恢复处理 |
+| 配置与日志 | 版本化配置、旧 OAS 配置预览导入、实时日志、逐帧耗时及运行记录 |
 
-“单应用”指安装、配置和生命周期统一管理。ADB 等必要工具可以是受控子进程，不要求所有依赖都编进同一个可执行文件。
+**按钮识别独立于场景识别。** 按钮模型输出类别与边界框，自动化编排再结合场景、标题和锁阵容等证据决定动作。不能把单个按钮被识别出来等同于允许点击。
 
-## 2. 工作区与上游定位
+## 魂十一 · 悲鸣
 
-```text
-D:\project\omj\
-├─ README.md             工作区入口
-├─ OnmyojiAutoScript\    Python 引擎上游，参考任务行为与识别逻辑
-├─ OASX\                 Flutter 界面上游，参考功能与交互
-└─ smart-omj\            新应用，独立 Git 仓库
-```
+### 当前验证范围
 
-两个上游仓库保留各自历史，默认不修改。新功能和新引擎在 smart-omj 中开发。
+先在游戏中选好 **八岐大蛇 → 悲鸣**，停留在挑战页，锁定预设阵容并开启自动战斗。在应用中选择设备和「魂十一·悲鸣」，核对启动提示后运行。
 
-已经安装在 `D:\Applications` 的旧版 OAS 不作为新应用的运行依赖，不迁移或覆盖其数据。需要迁移旧配置时，另做显式导入和备份。
-
-上游来源：
-
-- [OnmyojiAutoScript](https://github.com/runhey/OnmyojiAutoScript)
-- [OASX](https://github.com/runhey/OASX)
-
-## 3. 技术选型
-
-| 领域 | 技术 | 设计用途与边界 |
-| --- | --- | --- |
-| 桌面容器 | Tauri 2 | 窗口、托盘、通知、安装包、应用生命周期 |
-| 界面 | Vue 3 + TypeScript + Vite | 页面和类型化组件，现有工程已初始化 |
-| UI 组件 | Naive UI | 已引入配置表单、提示、控件和虚拟日志列表 |
-| 页面与状态 | Vue Router + Pinia | 已引入页面导航、设备选择、任务状态投影 |
-| 异步引擎 | Rust + Tokio | 任务执行、超时、取消、子进程与并发控制 |
-| 模拟器操作 | 随应用打包的 ADB | 设备发现、截图、点击和滑动；首版验证常规 ADB 控制 |
-| 图像处理 | image + opencv Rust 绑定 | 图像解码、裁剪、缩放、模板匹配；OpenCV 原生依赖需打包验证 |
-| OCR | ONNX Runtime + ort Rust 绑定 | 模型推理；适配检测、方向判断、识别、预处理和文字解码 |
-| 数据模型 | serde + JSON | 版本化配置、校验、导入导出 |
-| 应用偏好 | Tauri Store | 主题、窗口和上次选择等非业务设置 |
-| 日志 | tracing + Tauri Events | 文件日志与界面批量推送，列表虚拟化 |
-| 历史记录 | SQLite + rusqlite（后续） | 有运行历史与统计需求时引入，不作为首个任务的前置条件 |
-| 测试 | Rust 测试 + Vitest + Vue Test Utils | 引擎规则、识别样本、配置表单和状态展示 |
-| 包管理 | pnpm | 已固定 pnpm 11.22.0，并配置国内镜像 |
-
-Rust 识别库的版本在技术验证阶段确定并锁定。不能直接假设 Python OCR 包的处理逻辑或现有模型能够无修改迁移；需要对照样本验证输入输出。
-
-## 4. 应用架构
+循环大致为：
 
 ```text
-Vue 界面
-  ├─ 设备管理 / 任务配置 / 运行状态 / 日志
-  └─ Tauri Commands / Events
-              ↓
-Rust 应用层
-  ├─ 配置服务与资源路径
-  ├─ 设备管理器
-  ├─ 调度器与任务状态机
-  ├─ 图像识别与 OCR
-  ├─ 日志与运行记录
-  └─ 生命周期与错误处理
-              ↓
-       ADB / 原生识别库 / 模型资源
-              ↓
-         MuMu / 阴阳师
+核验悲鸣挑战页 → 挑战 → 准备/战斗 → 奖励结算 → 返回挑战页
+       ↑                                      │
+       └──────── 未达到设定轮数 ───────────────┘
 ```
 
-### 界面与引擎边界
+- 挑战前同时核验八岐大蛇场景、悲鸣标题、阵容锁定和挑战按钮，并排除冲突标记。
+- 连续两帧确认状态；自己发起挑战且观察到战斗、结算和返回后，才计为完成一轮。
+- 点击前随机等待 **120–280 ms**；每轴偏移最多为按钮宽高的 **10%**，且不超过 **12 个原图像素**，限定在框中央区域。
+- 随机等待可以取消；等待后再次检查任务时限、截图有效期和坐标。超过 **1500 ms** 的截图不用于点击。
+- 挑战不盲目重试；准备和结算重试有上限，未知页面、失败或超时会停止并保留诊断记录。
 
-- Vue 只负责展示和用户操作，不直接执行命令行或编写游戏任务逻辑。
-- Rust 保存权威运行状态，前端 Pinia 保存用于展示的状态副本。
-- Commands 用于查询和发出启动、停止、保存配置等请求；Events 用于运行状态和日志推送。
-- 首版定义设备列表、设备连接、截图、配置读取与保存、任务启动与停止、状态查询等接口。
-- 事件携带设备标识、任务运行标识和递增序号；界面重新打开时先取完整状态，再订阅增量变化。
-- IPC 参数必须校验，不能暴露任意 Shell 执行或任意路径写入接口。
+**尚未支持自动滚动选择悲鸣、自动配队或组队刷图。** 当前魂十一验证限定横屏 16:9；其他分辨率、模拟器版本及异常场景仍需补充测试。实验流程不代表已覆盖上游全部任务。
 
-### 任务执行模型
+详细规则、实测和限制见 [魂十一流程](docs/soul11-loop.md)。
 
-每个任务由显式状态机构成：
+## 截图与识别性能
 
-```text
-准备 → 识别当前界面 → 检查前置条件 → 执行动作 → 验证结果
-                    ↑                         ↓
-                    └──── 下一轮 / 完成 / 受限恢复
-```
+魂十一循环优先使用 MuMu 的 `external_renderer_ipc.dll` 直接取图。启动时通过 Android boot UUID 核对实例，再与 ADB 截图比较尺寸和内容；验证失败或接口异常时回退 ADB raw / PNG。点击仍通过所选设备的 ADB 连接发送。
 
-- 状态必须有超时、最大重试次数和停止条件，避免无限点击或无限等待。
-- 单个设备同一时间只允许一个任务发送操作，首版只支持单设备执行。
-- 停止请求通过取消信号传递到等待和操作步骤；同步识别推理设置独立耗时预算，在阶段边界响应停止。
-- OpenCV 和 ONNX 推理放入阻塞工作线程，避免阻塞界面或异步调度线程，并限制并发数。
-- 重试仅用于明确可恢复且不会重复造成副作用的步骤；购买、消耗资源等动作必须确认结果后再决定下一步。
-- 无法识别、设备离线或前置条件不满足时停止并提供原因，不盲目继续操作。
+图像缩放、RGBA 转换与垂直翻转使用 OpenCV。按钮和场景使用 ONNX Runtime，支持 CUDA；GPU 初始化失败会显示 CPU 回退原因。
 
-## 5. 模块目录规划
+本机挑战页稳定帧中位数，排除首次模型冷启动及点击派发帧：
 
-初期在 src-tauri 中按模块组织，核心逻辑不依赖 Tauri 窗口对象；需要复用或独立测试时再拆分 Rust crate。
+| 耗时 | 原 ADB raw 链路 | 优化后 |
+| --- | ---: | ---: |
+| 截图合计，含 PNG 编码 | 367 ms | 57 ms |
+| 按钮预处理 | 89 ms | 8 ms |
+| 场景识别 | 64 ms | 3 ms |
+| 整帧处理 | 534 ms | 84 ms |
 
-```text
-smart-omj/
-├─ src/
-│  ├─ pages/                  首页、设备、任务、日志、设置
-│  ├─ components/             共享组件和配置控件
-│  ├─ stores/                 界面状态
-│  ├─ services/               Tauri 调用与事件订阅
-│  └─ types/                  前端数据类型
-├─ src-tauri/
-│  ├─ src/
-│  │  ├─ commands/            IPC 参数校验和接口适配
-│  │  ├─ engine/              运行上下文、调度、取消、状态机
-│  │  ├─ device/              ADB 与模拟器适配
-│  │  ├─ vision/              截图、模板匹配、OCR
-│  │  ├─ tasks/               每个游戏任务的流程
-│  │  ├─ config/              配置模型、校验、版本迁移
-│  │  ├─ telemetry/           日志、诊断和运行记录
-│  │  └─ app/                 生命周期、资源定位
-│  ├─ resources/              随包资源、模型和素材
-│  └─ binaries/               按平台管理的辅助工具
-├─ tests/fixtures/            脱敏截图、识别预期和流程样本
-└─ docs/                     接口契约、任务规格和迁移记录
-```
+优化后原生取帧及像素转换约 **8 ms**，PNG 留档编码约 **49 ms**。这些数据来自加入随机等待前的性能测试；随机等待另外计入点击帧总耗时。两轮实测约 **52.2 秒**，战斗和动画仍决定大部分刷图时间，不能把单帧提速倍数当作刷图速度提升。
 
-运行数据写入系统应用数据目录，按配置、日志、截图和历史记录分类；不写入安装目录，也不依赖开发机的绝对路径。模型与工具从应用资源目录定位。
+日志记录截图后端、取帧/编码、预处理、推理、场景、模板、决策、点击、存图和总耗时，以及随机等待和实际点击坐标。**手动单次观察暂未切换到 IPC 截图路径。**
 
-## 6. 分阶段实施与验收
+## 按钮工作台
 
-### 阶段 0：技术验证
+入口：**场景训练 → 按钮识别与坐标**。包含「标注图片」「数据集与类别」「训练模型」「识别测试」四个页签。
 
-目标：确认 Rust 能完成截图、匹配和 OCR，并在目标 Windows 环境分发。
+1. 导入图片、采集截图或从录像筛选具有差异的帧。
+2. 使用已有模型预标注，检查并修正错框、漏框和类别；预标注结果不会直接作为已审核真值。
+3. 为图片设置训练集或验证集，并保存完整标注与审核状态。
+4. 训练后查看整体及各类指标，在实际截图上检查识别框和点击点，再决定是否启用。
 
-- 梳理一个上游任务的页面、模板、控制方式和异常分支。
-- 验证 ADB 设备枚举、截图、点击、滑动以及分辨率自适应、黑边/方向识别与点击坐标回映射。
-- 验证 OpenCV 模板匹配与 ort 模型加载，对照已标注截图检查识别结果。
-- 验证原生 DLL、模型文件和 ADB 在打包环境中的加载方式。
+同一真实来源批次可以跨训练集和验证集，只提示相似素材可能抬高分数；完全相同图片跨集合会阻止训练。修改单张图片用途不会改动同批其他图片。类别修改有备份，删除类别保留原图，并让受影响图片重新审核。
 
-验收：在没有 Python 的测试环境中运行诊断流程，输出截图、匹配位置、OCR 文字及耗时；失败时提供可定位的错误。
+“可训练”只表示满足启动条件，不代表数据充足或模型可靠。训练结果不会自动替换当前启用模型。
 
-### 阶段 1：设备与操作闭环
+`soulbtn` 表示探索页**底部功能栏的御魂图标**，不要与画面中的竖牌混标。类别定义和命名边界见 [按钮类别表](docs/button-classes.md)。
 
-- 新建设备页、连接状态和截图预览。
-- Rust 实现设备管理、操作互斥、超时和取消。
-- 打通“截图 → 识别指定元素 → 点击 → 再截图验证”。
+## 开发运行
 
-验收：断线、截图失败、识别失败均能正确退出或提示；点击位置经过边界校验；停止后不再发送新操作。
+### 环境要求
 
-### 阶段 2：第一个完整任务
+- Windows x64、WebView2、MuMu，以及 Android SDK platform-tools。
+- Node.js 24、pnpm **11.22.0**、Rust MSVC 工具链、Microsoft C++ Build Tools。
+- LLVM / libclang；默认配置路径为 `C:\Program Files\LLVM\bin`，非默认安装需调整 `.cargo/config.toml`。
+- 训练需 Python 虚拟环境 `training/.venv`；本机验证使用 Python 3.12。
+- GPU 验证组合：RTX 5070、PyTorch 2.14.1 + CUDA 13.0、ONNX Runtime GPU 1.31.0、cuDNN 9。其他环境需要单独验证。
 
-首个任务选择御魂循环，先限定单人、固定难度和已预设阵容。进入任务前明确所需界面和游戏设置，不在此阶段加入自动配队。
+### 安装源码依赖
 
-- 实现准备、进入战斗、战斗等待、结算、下一轮等状态。
-- 支持轮数限制、运行时长限制、停止和失败截图。
-- 明确体力不足、战斗失败、页面异常的处理。
-
-验收：能够完成设定轮数；达到限制后停止；失败不产生无限重试；日志能还原每轮状态变化。
-
-### 阶段 3：配置、调度与运行面板
-
-- 引入 Naive UI、Vue Router、Pinia，完成任务配置和运行面板。
-- 设计带 schema_version 的 Rust 配置模型，提供字段校验和原子保存。
-- 配置表单从统一字段定义生成或映射，避免 Rust 与 Vue 各维护一套不一致的规则。
-- 实现任务队列、下次运行时间、优先级和日志过滤。
-- 启动时不自动恢复未确认的游戏操作；崩溃后将未完成运行标记为中断。
-
-验收：配置保存后可恢复，非法配置被拒绝，同设备任务不会同时操作，日志增长不会拖慢界面。
-
-### 阶段 4：逐项迁移任务
-
-按需求添加签到、悬赏、结界突破等功能。每个任务先写行为规格、前置条件和验收样本，再实现流程。
-
-维护功能迁移表，区分“计划中、实现中、已验证”，不把上游已有功能视为新应用已支持功能。
-
-旧 OAS JSON 配置只通过显式导入迁移：备份原文件、映射已支持字段、报告不兼容字段，不静默覆盖或假装完全兼容。
-
-### 阶段 5：安装包与发布
-
-- 打包 ADB、原生识别库、模型和必要资源，处理 WebView2 运行依赖。
-- 实现托盘、退出确认、日志清理和诊断导出。
-- 关闭应用时先取消任务并等待安全结束，仅清理应用拥有的子进程，不按进程名称结束用户其他程序。
-- 后续增加签名更新、资源版本校验及升级回滚方案。
-
-验收：干净 Windows 环境无需 Python 或开发工具即可安装、连接模拟器并完成已支持任务；升级保留配置；卸载时明确用户数据保留策略。
-
-## 7. 测试与质量要求
-
-- **Rust 单元测试**：调度规则、状态转换、取消、配置校验与迁移。
-- **识别回归测试**：使用脱敏截图样本检查匹配框、OCR 文本和置信度；覆盖失败与干扰场景。
-- **设备接口测试**：模拟断线、超时和错误响应，不依赖真实游戏完成所有自动测试。
-- **前端测试**：配置表单、任务状态展示、停止操作和错误反馈。
-- **手动验收**：使用真实 MuMu 验证完整任务，记录模拟器版本、游戏界面设置及支持范围。
-- **打包验收**：确认资源可定位、原生库可加载，且不借用开发机 Python 或旧 OAS 安装。
-
-任务启动前检查分辨率、设备和所需资源。截图和日志保存在本机，诊断导出时排除账号信息、凭据和不必要的完整截图。
-
-## 8. 开发与构建
-
-当前工程需要 Node.js、pnpm 11.22.0、Rust MSVC 工具链、Microsoft C++ Build Tools 和 WebView2。OpenCV还需要LLVM/libclang，开发及打包配置见下方说明；ONNX Runtime与OCR模型尚待接入。
+在 PowerShell 中执行：
 
 ```powershell
-cd D:\project\omj\smart-omj
+git clone https://github.com/l1280776919/smart-omj.git
+cd smart-omj
 pnpm install --frozen-lockfile
 pnpm prepare:adb
 pnpm prepare:opencv
+```
+
+`prepare:adb` 默认从 PATH 查找 `adb.exe`，并要求 platform-tools 目录包含运行库、`NOTICE.txt` 和 `source.properties`。也可显式指定目录：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-adb.ps1 -PlatformToolsDirectory "C:\Android\platform-tools"
+```
+
+### 训练与 GPU 运行库
+
+以下命令用于新建 GPU 训练环境，不要同时安装 CPU 版 `onnxruntime`：
+
+```powershell
+py -3.12 -m venv training/.venv
+training/.venv/Scripts/python.exe -m pip install -r training/requirements-gpu.txt --extra-index-url https://download.pytorch.org/whl/cu130
+pnpm prepare:gpu
+```
+
+GPU 准备脚本从虚拟环境复制 ONNX Runtime、CUDA 和 cuDNN 依赖。训练工作台当前依赖源码和该虚拟环境，尚未作为独立 Python 训练环境随安装包分发。CPU 训练依赖另见 `training/requirements.txt`。
+
+### 模型资源与启动
+
+**源码仓库不包含模型权重或完整运行库。** 克隆后需要自行训练或准备与配置一致的模型，不能仅修改文件名就替换任意模型：
+
+| 位置 | 用途 |
+| --- | --- |
+| `src-tauri/resources/detector/soul1.onnx` | 内置检测模型，类别顺序对应 `model.json` |
+| `src-tauri/resources/scene/best.onnx` | 内置场景模型，类别及预处理对应 `scene_model.json` |
+| `src-tauri/resources/gpu/` | GPU ONNX Runtime 与 CUDA/cuDNN 运行库 |
+| `src-tauri/resources/detector/onnxruntime.dll` | 未使用 GPU 运行库时的 ONNX Runtime 加载位置 |
+| 应用数据目录的 `button-studio/models/` | 工作台训练、验证并启用的自定义按钮模型 |
+
+目前没有一键下载完整模型资源包。训练与导出入口见 `training/`、[场景工作台](docs/scene-workbench.md) 和 [按钮工作台](docs/button-workbench.md)。魂十一读取已启用按钮模型，场景判断使用内置场景模型。
+
+资源准备完成后启动桌面应用：
+
+```powershell
 pnpm tauri dev
 ```
 
-常用检查：
+仅调试前端可以运行 `pnpm dev`，设备、训练和自动化等功能需要 Tauri 后端。
+
+## 检查与构建
 
 ```powershell
 pnpm build
 pnpm test
-cargo test --manifest-path src-tauri/Cargo.toml --lib
-cargo check --manifest-path src-tauri/Cargo.toml
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
+pnpm test:rust
+cargo build --manifest-path src-tauri/Cargo.toml
 ```
 
-构建安装包：
+完整 Rust 测试中有部分依赖本机模型、原生运行库或未上传的截图样本，纯源码克隆不能直接复现全部测试。已提交的 GitHub Actions 工作流仍需补充测试资源和运行库准备；本机通过不代表云端 CI 已通过。
+
+开发配置已设置 `[profile.dev] incremental = false`，规避本机反复出现的 MSVC `LNK2001/LNK2019` 匿名 LLVM 符号错误，无需每次临时设置环境变量。
+
+准备全部运行资源后可尝试构建安装包：
 
 ```powershell
 pnpm tauri build
 ```
 
-项目 `.npmrc` 使用 `https://registry.npmmirror.com`。提交 `pnpm-lock.yaml` 和 `Cargo.lock`，不使用 `package-lock.json`。新测试工具引入后，再补齐对应测试命令及 CI。
+干净环境安装、资源完整性及分发验收仍待完成。
 
-## 9. 许可证与资源来源
+## 数据与目录
 
-OAS 使用 GPL-3.0。迁移或改写上游代码时需要评估并遵守其许可要求，保留版权、许可证和修改说明；换用 Rust 不会自动消除这些义务。
+Windows 应用数据位于 `%APPDATA%\com.smartomj.desktop\`，其中包含配置、运行记录，以及 `button-studio/annotations.json`、原图、标注历史、模型和启用记录。不要用 Git 工作区替代这些数据的备份。
 
-对 OASX、识别模型、图片素材、ADB、OpenCV 和 ONNX Runtime 分别记录来源、版本及许可证。发布前确定本仓库的适用许可证、源码提供方式和第三方声明。未确认可以再分发的资源不直接加入发布包。
+```text
+src/                       Vue 页面、组件、服务和状态
+src-tauri/src/device/       ADB 与 MuMu 原生截图
+src-tauri/src/vision/       检测、场景分类、模板匹配与坐标还原
+src-tauri/src/tasks/        页面判断与任务状态机
+src-tauri/src/closed_loop.rs 截图、识别、决策、点击及留档
+src-tauri/src/*_studio.rs   工作台后端
+src-tauri/resources/        模型配置与运行资源
+training/                  素材处理、训练、评估和导出脚本
+scripts/                   ADB、OpenCV、GPU 运行库准备
+docs/                     功能规格和验证记录
+```
 
-## 10. 当前进度
+截图、录像、训练集、模型权重、实验运行记录和大型二进制已加入 Git 忽略规则，保留在本机。源码中的小型流程模板与类别配置随仓库提交。
 
-- [x] 拉取两个上游仓库，并保持独立 Git 历史。
-- [x] 初始化 Tauri 2 + Vue 3 + TypeScript 工程。
-- [x] 切换 pnpm 并配置国内镜像。
-- [x] 基础前端构建与 Rust 编译检查通过。
-- [x] 明确使用 Rust 重写引擎，最终不依赖 Python。
-- [x] 实现 Rust ADB 管理、操作互斥、取消和参数校验。
-- [x] 实现临时纯 Rust 模板匹配、诊断和识别点击验证接口。
-- [x] 实现御魂单人实验状态机，完整真机验收待执行。
-- [x] 引入 Naive UI / Vue Router / Pinia，接通五页面、配置和日志。
-- [x] 补齐自动测试、接口契约、任务规格和资源来源声明。
-- [ ] 完成 ADB、OpenCV 和 OCR 技术验证。
-- [ ] 实现设备操作闭环。
-- [ ] 实现并验证御魂循环。
-- [ ] 实现配置、调度及运行面板。
-- [ ] 按需求迁移其他任务。
-- [ ] 验证一体化安装包。
+## 文档与后续工作
 
-实现细节与验收范围：[IPC 契约](docs/ipc-contract.md)、[御魂规格](docs/soul-task-spec.md)、[迁移记录](docs/migration-status.md)、[第三方声明](THIRD_PARTY_NOTICES.md)。运行配置为 `schema_version: 1` 的新格式，不直接兼容旧 OAS JSON。
+- [魂十一流程与性能记录](docs/soul11-loop.md)
+- [独立按钮识别工作台](docs/button-workbench.md)
+- [按钮类别表](docs/button-classes.md)
+- [场景训练工作台](docs/scene-workbench.md)
+- [OpenCV 开发与打包](docs/native-opencv.md)
+- [自适应分辨率诊断](docs/adaptive-resolution.md)
+- [IPC 接口](docs/ipc-contract.md)
+- [历史迁移记录](docs/migration-status.md)
 
-分辨率策略已升级，1280×720只作为设计基准，详见 [自适应策略](docs/adaptive-resolution.md)。
+后续重点是补充独立采集的验证素材、覆盖更多异常页面与设备环境、完善可复现的模型/测试资源准备，并完成安装包验收。OCR、自动配队、组队及更多游戏任务不在当前已验证范围内。
 
-OpenCV原生依赖准备、LLVM路径覆盖及发布限制见 [OpenCV开发与打包](docs/native-opencv.md)。
+## 来源与许可
 
-
-### 源码仓库与本机运行资源
-
-本仓库提交前后端源码、训练脚本、模型类别配置和小型流程模板；不提交账户截图、录像、标注数据、训练结果、ONNX/PT 权重或 DLL/EXE。忽略规则不会删除这些本机文件。
-
-首次克隆不等于已具备完整运行环境。除上述 ADB/OpenCV 准备步骤外，识别需要自行准备与类别配置一致的 `src-tauri/resources/detector/soul1.onnx`、`src-tauri/resources/scene/best.onnx` 和 ONNX Runtime；CUDA 依赖准备见 `scripts/stage-gpu.py`、`training/requirements-gpu.txt`。自定义按钮模型通过工作台训练并启用。场景回归截图与 `training/soul11-review/` 实测记录也只保存在开发机，因此依赖这些资源的完整 Rust 测试不能在纯源码克隆中直接复现。现有 CI 的 Rust 检查仍需补充独立测试资源与运行库准备；本次上传不代表云端 CI 已通过。
-
-当前已实现悲鸣闭环、MuMu IPC 取图、分段耗时日志及随机点击等待/偏移，详情见 [魂十一流程记录](docs/soul11-loop.md)。开发配置已关闭 Rust 增量编译，以规避本机 MSVC 的匿名 LLVM 符号链接错误。
+任务行为和部分模板参考 [OnmyojiAutoScript](https://github.com/runhey/OnmyojiAutoScript)，界面功能划分参考 [OASX](https://github.com/runhey/OASX)。本项目采用 **GPL-3.0-only**；模板、原生库等第三方来源及说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 和 [LICENSE](LICENSE)。
